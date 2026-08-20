@@ -29,6 +29,7 @@ function request(body, method = 'POST') {
 describe('submit-registration Netlify function', () => {
   beforeEach(() => {
     vi.stubEnv('DIRECTUS_TOKEN', 'test-directus-token')
+    vi.stubEnv('DIRECTUS_URL', 'https://burnes-center.directus.app')
     global.fetch = vi.fn()
   })
 
@@ -51,6 +52,48 @@ describe('submit-registration Netlify function', () => {
 
     expect(response.status).toBe(400)
     await expect(response.json()).resolves.toEqual({ error: 'Invalid request payload.' })
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('returns a safe configuration error when the Directus token is missing', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubEnv('DIRECTUS_TOKEN', '')
+
+    const response = await submitRegistration(request(validRegistration))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Server configuration error.' })
+    expect(consoleError).toHaveBeenCalledWith(
+      'DIRECTUS_TOKEN is not configured for submit-registration.'
+    )
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('returns a safe configuration error when the Directus URL is missing', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubEnv('DIRECTUS_URL', '')
+
+    const response = await submitRegistration(request(validRegistration))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Server configuration error.' })
+    expect(consoleError).toHaveBeenCalledWith(
+      'DIRECTUS_URL is not configured for submit-registration.'
+    )
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('returns a safe configuration error when the Directus URL is invalid', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubEnv('DIRECTUS_URL', 'not a valid url')
+
+    const response = await submitRegistration(request(validRegistration))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Server configuration error.' })
+    expect(consoleError).toHaveBeenCalledWith(
+      'DIRECTUS_URL is not a valid URL for submit-registration.'
+    )
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
@@ -100,6 +143,28 @@ describe('submit-registration Netlify function', () => {
       error: 'Unable to submit registration right now.'
     })
     expect(global.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('posts valid registrations to the configured Directus collection', async () => {
+    vi.stubEnv('DIRECTUS_TOKEN', '  test-directus-token  ')
+    vi.stubEnv('DIRECTUS_URL', 'https://burnes-center.directus.app/')
+    global.fetch.mockResolvedValue({
+      ok: true
+    })
+
+    const response = await submitRegistration(request(validRegistration))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ ok: true })
+    const [url, options] = global.fetch.mock.calls[0]
+
+    expect(url).toBe('https://burnes-center.directus.app/items/cw_intake')
+    expect(options.method).toBe('POST')
+    expect(options.headers).toEqual({
+      Authorization: 'Bearer test-directus-token',
+      'Content-Type': 'application/json'
+    })
+    expect(JSON.parse(options.body)).toEqual(validRegistration)
   })
 
   it('returns 502 when the Directus request rejects', async () => {

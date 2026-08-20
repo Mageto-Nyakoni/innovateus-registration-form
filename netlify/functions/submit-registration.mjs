@@ -1,7 +1,27 @@
-const DIRECTUS_URL = (process.env.DIRECTUS_URL || 'https://burnes-center.directus.app').replace(
-  /\/+$/,
-  ''
-)
+function getDirectusConfig() {
+  const token = normalizeText(process.env.DIRECTUS_TOKEN)
+  const directusUrl = normalizeText(process.env.DIRECTUS_URL).replace(/\/+$/, '')
+
+  if (!token) {
+    console.error('DIRECTUS_TOKEN is not configured for submit-registration.')
+    return { error: 'missing-token' }
+  }
+
+  if (!directusUrl) {
+    console.error('DIRECTUS_URL is not configured for submit-registration.')
+    return { error: 'missing-url' }
+  }
+
+  try {
+    return {
+      endpoint: new URL('/items/cw_intake', `${directusUrl}/`).toString(),
+      token
+    }
+  } catch {
+    console.error('DIRECTUS_URL is not a valid URL for submit-registration.')
+    return { error: 'invalid-url' }
+  }
+}
 
 function json(body, status = 200) {
   return Response.json(body, {
@@ -84,8 +104,9 @@ export default async (req) => {
     })
   }
 
-  if (!process.env.DIRECTUS_TOKEN) {
-    console.error('DIRECTUS_TOKEN is not configured for submit-registration.')
+  const config = getDirectusConfig()
+
+  if (config.error) {
     return json({ error: 'Server configuration error.' }, 500)
   }
 
@@ -108,10 +129,10 @@ export default async (req) => {
   }
 
   try {
-    const response = await fetch(`${DIRECTUS_URL}/items/cw_intake`, {
+    const response = await fetch(config.endpoint, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.DIRECTUS_TOKEN}`,
+        Authorization: `Bearer ${config.token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)

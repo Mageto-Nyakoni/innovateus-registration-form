@@ -48,10 +48,10 @@ Create a local `.env` file for Netlify/function development:
 
 ```bash
 DIRECTUS_TOKEN=your_directus_token_here
-DIRECTUS_URL=https://your-directus-instance.example
+DIRECTUS_URL=https://burnes-center.directus.app
 ```
 
-`DIRECTUS_TOKEN` is required for real submissions. `DIRECTUS_URL` is optional in code because the function has a default URL, but setting it explicitly is recommended for local and deployed environments.
+Both values are required for real submissions. Keep `DIRECTUS_TOKEN` server-side only; do not prefix it with `VITE_`.
 
 ## Run Locally
 
@@ -77,7 +77,7 @@ npm test
 
 The tests cover client-side form validation, conditional field behavior, newsletter payload handling, accessibility-related form attributes, submission states, and the Netlify Function's request handling.
 
-Current result: 2 test files, 31 tests passing.
+Current result: 2 test files, 35 tests passing.
 
 ## Production Build
 
@@ -101,7 +101,7 @@ Set these environment variables in Netlify before using live submissions:
 
 ```bash
 DIRECTUS_TOKEN=your_directus_token_here
-DIRECTUS_URL=https://your-directus-instance.example
+DIRECTUS_URL=https://burnes-center.directus.app
 ```
 
 Do not commit real credentials or expose the Directus token in client-side code.
