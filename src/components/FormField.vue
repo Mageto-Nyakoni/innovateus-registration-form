@@ -1,7 +1,10 @@
 <script setup>
-const model = defineModel({ required: true })
+import { computed } from 'vue'
 
-defineProps({
+const model = defineModel({ required: true })
+const emit = defineEmits(['blur', 'input'])
+
+const props = defineProps({
   id: {
     type: String,
     required: true
@@ -29,7 +32,25 @@ defineProps({
   hint: {
     type: String,
     default: ''
+  },
+  error: {
+    type: String,
+    default: ''
   }
+})
+
+const describedBy = computed(() => {
+  const ids = []
+
+  if (props.hint) {
+    ids.push(`${props.id}-hint`)
+  }
+
+  if (props.error) {
+    ids.push(`${props.id}-error`)
+  }
+
+  return ids.join(' ') || undefined
 })
 </script>
 
@@ -44,7 +65,12 @@ defineProps({
       :placeholder="placeholder"
       :required="required"
       :autocomplete="autocomplete"
+      :aria-invalid="error ? 'true' : 'false'"
+      :aria-describedby="describedBy"
+      @blur="emit('blur')"
+      @input="emit('input')"
     />
-    <p v-if="hint" class="form-hint">{{ hint }}</p>
+    <p v-if="hint" :id="`${id}-hint`" class="form-hint">{{ hint }}</p>
+    <p v-if="error" :id="`${id}-error`" class="form-error" role="alert">{{ error }}</p>
   </div>
 </template>

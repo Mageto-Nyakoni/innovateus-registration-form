@@ -7,10 +7,23 @@ const props = defineProps({
   series: {
     type: Array,
     required: true
+  },
+  error: {
+    type: String,
+    default: ''
   }
 })
 
 const selectedCount = computed(() => model.value.length)
+const describedBy = computed(() => {
+  const ids = ['workshop-series-help']
+
+  if (props.error) {
+    ids.push('workshop-series-error')
+  }
+
+  return ids.join(' ')
+})
 
 function toggleSeries(id) {
   if (model.value.includes(id)) {
@@ -35,7 +48,11 @@ function isChecked(id) {
 </script>
 
 <template>
-  <section class="series-selector" aria-labelledby="series-title">
+  <section
+    class="series-selector"
+    :class="{ 'series-selector--invalid': error }"
+    aria-labelledby="series-title"
+  >
     <div class="series-selector__header">
       <div>
         <h3 id="series-title" class="series-selector__title">Selected Event Series</h3>
@@ -50,7 +67,9 @@ function isChecked(id) {
       <button type="button" class="button button--secondary button--small" @click="selectAll">
         Select All Series
       </button>
-      <p class="series-selector__toolbar-copy">Select at least one series to continue.</p>
+      <p id="workshop-series-help" class="series-selector__toolbar-copy">
+        Select at least one series to continue.
+      </p>
       <button
         v-if="selectedCount"
         type="button"
@@ -68,6 +87,8 @@ function isChecked(id) {
             class="series-card__checkbox"
             type="checkbox"
             :checked="isChecked(entry.id)"
+            :aria-invalid="error ? 'true' : 'false'"
+            :aria-describedby="describedBy"
             @change="toggleSeries(entry.id)"
           />
           <span class="series-card__badge" aria-hidden="true">{{ entry.badge }}</span>
@@ -75,5 +96,7 @@ function isChecked(id) {
         </label>
       </li>
     </ul>
+
+    <p v-if="error" id="workshop-series-error" class="form-error" role="alert">{{ error }}</p>
   </section>
 </template>

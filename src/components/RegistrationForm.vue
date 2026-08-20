@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import {
   countryOptions,
   governmentLevelOptions,
@@ -14,10 +14,21 @@ import SectionHeading from './SectionHeading.vue'
 import SeriesSelector from './SeriesSelector.vue'
 
 const formRef = ref(null)
-const seriesError = ref('')
 const submissionNotice = ref('')
 const submissionError = ref('')
 const isSubmitting = ref(false)
+const hasAttemptedSubmit = ref(false)
+const validationErrors = reactive({
+  email: '',
+  first_name: '',
+  last_name: '',
+  country: '',
+  state: '',
+  non_us_country: '',
+  gov_org: '',
+  gov_level: '',
+  workshop_series: ''
+})
 
 const form = reactive({
   email: '',
@@ -45,6 +56,7 @@ const selectedSeriesTitles = computed(() =>
     .filter((entry) => form.workshop_series.includes(entry.id))
     .map((entry) => entry.title)
 )
+
 const directusPayload = computed(() => {
   const payload = {
     first_name: form.first_name.trim(),
@@ -53,7 +65,7 @@ const directusPayload = computed(() => {
     country: resolvedCountry.value,
     gov_org: form.gov_org,
     workshop_series: selectedSeriesTitles.value.join(', '),
-    newsletter: form.newsletter
+    newsletter: Boolean(form.newsletter)
   }
 
   if (requiresState.value && form.state) {
@@ -67,21 +79,185 @@ const directusPayload = computed(() => {
   return payload
 })
 
+const validationFieldOrder = computed(() => {
+  const fields = ['email', 'first_name', 'last_name', 'country']
+
+  if (requiresState.value) {
+    fields.push('state')
+  } else if (requiresNonUsCountry.value) {
+    fields.push('non_us_country')
+  }
+
+  fields.push('gov_org')
+
+  if (requiresGovLevel.value) {
+    fields.push('gov_level')
+  }
+
+  fields.push('workshop_series')
+
+  return fields
+})
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function normalizeText(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function setValidationError(field, message) {
+  validationErrors[field] = message
+  return false
+}
+
+function clearValidationError(field) {
+  validationErrors[field] = ''
+  return true
+}
+
+function validateField(field) {
+  switch (field) {
+    case 'email': {
+      const value = normalizeText(form.email)
+
+      if (!value) {
+        return setValidationError('email', 'Email is required.')
+      }
+
+      if (!emailPattern.test(value)) {
+        return setValidationError('email', 'Enter a valid email address.')
+      }
+
+      return clearValidationError('email')
+    }
+
+    case 'first_name':
+      return normalizeText(form.first_name)
+        ? clearValidationError('first_name')
+        : setValidationError('first_name', 'First name is required.')
+
+    case 'last_name':
+      return normalizeText(form.last_name)
+        ? clearValidationError('last_name')
+        : setValidationError('last_name', 'Last name is required.')
+
+    case 'country':
+      return form.country_mode
+        ? clearValidationError('country')
+        : setValidationError('country', 'Select a country.')
+
+    case 'state':
+      if (!requiresState.value) {
+        return clearValidationError('state')
+      }
+
+      return normalizeText(form.state)
+        ? clearValidationError('state')
+        : setValidationError('state', 'Select a state.')
+
+    case 'non_us_country':
+      if (!requiresNonUsCountry.value) {
+        return clearValidationError('non_us_country')
+      }
+
+      return normalizeText(form.non_us_country)
+        ? clearValidationError('non_us_country')
+        : setValidationError('non_us_country', 'Enter your country.')
+
+    case 'gov_org':
+      return form.gov_org
+        ? clearValidationError('gov_org')
+        : setValidationError('gov_org', 'Select whether you support a government organization.')
+
+    case 'gov_level':
+      if (!requiresGovLevel.value) {
+        return clearValidationError('gov_level')
+      }
+
+      return form.gov_level
+        ? clearValidationError('gov_level')
+        : setValidationError('gov_level', 'Select the government level.')
+
+    case 'workshop_series':
+      return form.workshop_series.length > 0
+        ? clearValidationError('workshop_series')
+        : setValidationError('workshop_series', 'Select at least one event series before continuing.')
+
+    default:
+      return true
+  }
+}
+
+function validateForm() {
+  let isValid = true
+
+  validationFieldOrder.value.forEach((field) => {
+    isValid = validateField(field) && isValid
+  })
+
+  return isValid
+}
+
+function shouldValidateField(field) {
+  return hasAttemptedSubmit.value || Boolean(validationErrors[field])
+}
+
+function handleFieldInput(field) {
+  if (shouldValidateField(field)) {
+    validateField(field)
+  }
+}
+
+function handleFieldChange(field) {
+  if (shouldValidateField(field)) {
+    validateField(field)
+  }
+}
+
+async function focusFirstInvalidField() {
+  await nextTick()
+
+  for (const field of validationFieldOrder.value) {
+    if (!validationErrors[field]) {
+      continue
+    }
+
+    const selector =
+      field === 'country'
+        ? '#country'
+        : field === 'workshop_series'
+          ? '.series-card__checkbox'
+          : `#${field}`
+
+    const element = formRef.value?.querySelector(selector)
+
+    if (element instanceof HTMLElement) {
+      element.focus()
+      break
+    }
+  }
+}
+
 watch(
   () => form.country_mode,
   (mode) => {
     if (mode === 'United States') {
       form.non_us_country = ''
-      return
-    }
-
-    if (mode === 'Outside the United States') {
+    } else if (mode === 'Outside the United States') {
       form.state = ''
-      return
+    } else {
+      form.state = ''
+      form.non_us_country = ''
     }
 
-    form.state = ''
-    form.non_us_country = ''
+    clearValidationError('state')
+    clearValidationError('non_us_country')
+
+    if (hasAttemptedSubmit.value) {
+      validateField('country')
+      validateField('state')
+      validateField('non_us_country')
+    }
   }
 )
 
@@ -91,6 +267,22 @@ watch(
     if (!value.startsWith('Yes')) {
       form.gov_level = ''
     }
+
+    clearValidationError('gov_level')
+
+    if (hasAttemptedSubmit.value) {
+      validateField('gov_org')
+      validateField('gov_level')
+    }
+  }
+)
+
+watch(
+  () => form.workshop_series.length,
+  () => {
+    if (shouldValidateField('workshop_series')) {
+      validateField('workshop_series')
+    }
   }
 )
 
@@ -99,16 +291,12 @@ async function handleSubmit() {
     return
   }
 
+  hasAttemptedSubmit.value = true
   submissionNotice.value = ''
   submissionError.value = ''
-  seriesError.value = ''
 
-  if (!formRef.value?.reportValidity()) {
-    return
-  }
-
-  if (form.workshop_series.length === 0) {
-    seriesError.value = 'Select at least one event series before continuing.'
+  if (!validateForm()) {
+    await focusFirstInvalidField()
     return
   }
 
@@ -122,6 +310,7 @@ async function handleSubmit() {
       },
       body: JSON.stringify({
         ...directusPayload.value,
+        newsletter: Boolean(form.newsletter),
         website: form.website
       })
     })
@@ -155,7 +344,10 @@ async function handleSubmit() {
           type="email"
           placeholder="your.email@example.com"
           autocomplete="email"
+          :error="validationErrors.email"
           required
+          @blur="handleFieldChange('email')"
+          @input="handleFieldInput('email')"
         />
 
         <div class="registration-form__row">
@@ -165,7 +357,10 @@ async function handleSubmit() {
             label="First Name *"
             placeholder="John"
             autocomplete="given-name"
+            :error="validationErrors.first_name"
             required
+            @blur="handleFieldChange('first_name')"
+            @input="handleFieldInput('first_name')"
           />
           <FormField
             id="last_name"
@@ -173,7 +368,10 @@ async function handleSubmit() {
             label="Last Name *"
             placeholder="Doe"
             autocomplete="family-name"
+            :error="validationErrors.last_name"
             required
+            @blur="handleFieldChange('last_name')"
+            @input="handleFieldInput('last_name')"
           />
         </div>
 
@@ -183,7 +381,10 @@ async function handleSubmit() {
             v-model="form.country_mode"
             label="Country *"
             :options="countryOptions"
+            :error="validationErrors.country"
             required
+            @blur="handleFieldChange('country')"
+            @change="handleFieldChange('country')"
           />
 
           <FormSelect
@@ -192,7 +393,10 @@ async function handleSubmit() {
             v-model="form.state"
             label="State *"
             :options="usStateOptions"
+            :error="validationErrors.state"
             required
+            @blur="handleFieldChange('state')"
+            @change="handleFieldChange('state')"
           />
           <FormField
             v-else-if="requiresNonUsCountry"
@@ -201,7 +405,10 @@ async function handleSubmit() {
             label="Country (Outside the United States) *"
             placeholder="Enter your country"
             autocomplete="country-name"
+            :error="validationErrors.non_us_country"
             required
+            @blur="handleFieldChange('non_us_country')"
+            @input="handleFieldInput('non_us_country')"
           />
           <div v-else class="form-control form-control--empty" aria-hidden="true"></div>
         </div>
@@ -212,7 +419,10 @@ async function handleSubmit() {
             v-model="form.gov_org"
             label="Do you work for or primarily support a government or government-affiliated organization? *"
             :options="governmentOrganizationOptions"
+            :error="validationErrors.gov_org"
             required
+            @blur="handleFieldChange('gov_org')"
+            @change="handleFieldChange('gov_org')"
           />
 
           <FormSelect
@@ -221,13 +431,19 @@ async function handleSubmit() {
             v-model="form.gov_level"
             label="If you selected yes above: What level of government? *"
             :options="governmentLevelOptions"
+            :error="validationErrors.gov_level"
             required
+            @blur="handleFieldChange('gov_level')"
+            @change="handleFieldChange('gov_level')"
           />
           <div v-else class="form-control form-control--empty" aria-hidden="true"></div>
         </div>
 
-        <SeriesSelector v-model="form.workshop_series" :series="workshopSeries" />
-        <p v-if="seriesError" class="form-error" role="alert">{{ seriesError }}</p>
+        <SeriesSelector
+          v-model="form.workshop_series"
+          :series="workshopSeries"
+          :error="validationErrors.workshop_series"
+        />
 
         <NewsletterOptIn v-model="form.newsletter" />
 

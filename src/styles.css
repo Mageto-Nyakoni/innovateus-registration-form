@@ -303,6 +303,12 @@ button {
   color: var(--text);
 }
 
+.form-input[aria-invalid='true'],
+.form-select[aria-invalid='true'] {
+  border-color: #b42318;
+  box-shadow: 0 0 0 1px rgba(180, 35, 24, 0.08);
+}
+
 .form-select-wrap {
   position: relative;
 }
@@ -349,6 +355,10 @@ button {
 .series-selector {
   padding-top: 1.6rem;
   border-top: 1px solid #edf2f7;
+}
+
+.series-selector--invalid {
+  border-top-color: rgba(180, 35, 24, 0.25);
 }
 
 .series-selector__header {

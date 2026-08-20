@@ -1,7 +1,10 @@
 <script setup>
-const model = defineModel({ required: true })
+import { computed } from 'vue'
 
-defineProps({
+const model = defineModel({ required: true })
+const emit = defineEmits(['blur', 'change'])
+
+const props = defineProps({
   id: {
     type: String,
     required: true
@@ -21,7 +24,25 @@ defineProps({
   hint: {
     type: String,
     default: ''
+  },
+  error: {
+    type: String,
+    default: ''
   }
+})
+
+const describedBy = computed(() => {
+  const ids = []
+
+  if (props.hint) {
+    ids.push(`${props.id}-hint`)
+  }
+
+  if (props.error) {
+    ids.push(`${props.id}-error`)
+  }
+
+  return ids.join(' ') || undefined
 })
 </script>
 
@@ -29,7 +50,16 @@ defineProps({
   <div class="form-control">
     <label class="form-label" :for="id">{{ label }}</label>
     <div class="form-select-wrap">
-      <select :id="id" v-model="model" class="form-select" :required="required">
+      <select
+        :id="id"
+        v-model="model"
+        class="form-select"
+        :required="required"
+        :aria-invalid="error ? 'true' : 'false'"
+        :aria-describedby="describedBy"
+        @blur="emit('blur')"
+        @change="emit('change')"
+      >
         <option
           v-for="option in options"
           :key="`${id}-${option.value}`"
@@ -40,6 +70,7 @@ defineProps({
         </option>
       </select>
     </div>
-    <p v-if="hint" class="form-hint">{{ hint }}</p>
+    <p v-if="hint" :id="`${id}-hint`" class="form-hint">{{ hint }}</p>
+    <p v-if="error" :id="`${id}-error`" class="form-error" role="alert">{{ error }}</p>
   </div>
 </template>
