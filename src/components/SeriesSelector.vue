@@ -48,14 +48,15 @@ function isChecked(id) {
 </script>
 
 <template>
-  <section
+  <fieldset
     class="series-selector"
     :class="{ 'series-selector--invalid': error }"
-    aria-labelledby="series-title"
+    :aria-invalid="error ? 'true' : undefined"
+    :aria-describedby="describedBy"
   >
+    <legend id="series-title" class="series-selector__title">Selected Event Series</legend>
     <div class="series-selector__header">
       <div>
-        <h3 id="series-title" class="series-selector__title">Selected Event Series</h3>
         <p class="series-selector__summary">
           You are registering for {{ selectedCount }} event
           {{ selectedCount === 1 ? 'series' : 'series entries' }}.
@@ -86,6 +87,8 @@ function isChecked(id) {
           <input
             class="series-card__checkbox"
             type="checkbox"
+            name="workshop_series"
+            :value="entry.id"
             :checked="isChecked(entry.id)"
             :aria-invalid="error ? 'true' : 'false'"
             :aria-describedby="describedBy"
@@ -97,6 +100,8 @@ function isChecked(id) {
       </li>
     </ul>
 
-    <p v-if="error" id="workshop-series-error" class="form-error" role="alert">{{ error }}</p>
-  </section>
+    <p v-if="error" id="workshop-series-error" class="form-error">
+      <span class="form-error__prefix">Error: </span>{{ error }}
+    </p>
+  </fieldset>
 </template>

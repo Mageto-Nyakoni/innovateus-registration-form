@@ -14,6 +14,7 @@ import SectionHeading from './SectionHeading.vue'
 import SeriesSelector from './SeriesSelector.vue'
 
 const formRef = ref(null)
+const validationNotice = ref('')
 const submissionNotice = ref('')
 const submissionError = ref('')
 const isSubmitting = ref(false)
@@ -198,6 +199,14 @@ function validateForm() {
   return isValid
 }
 
+function updateValidationNotice() {
+  const hasErrors = validationFieldOrder.value.some((field) => validationErrors[field])
+
+  validationNotice.value = hasErrors
+    ? 'Please correct the fields with error messages before registering.'
+    : ''
+}
+
 function shouldValidateField(field) {
   return hasAttemptedSubmit.value || Boolean(validationErrors[field])
 }
@@ -205,12 +214,14 @@ function shouldValidateField(field) {
 function handleFieldInput(field) {
   if (shouldValidateField(field)) {
     validateField(field)
+    updateValidationNotice()
   }
 }
 
 function handleFieldChange(field) {
   if (shouldValidateField(field)) {
     validateField(field)
+    updateValidationNotice()
   }
 }
 
@@ -257,6 +268,7 @@ watch(
       validateField('country')
       validateField('state')
       validateField('non_us_country')
+      updateValidationNotice()
     }
   }
 )
@@ -273,6 +285,7 @@ watch(
     if (hasAttemptedSubmit.value) {
       validateField('gov_org')
       validateField('gov_level')
+      updateValidationNotice()
     }
   }
 )
@@ -282,6 +295,7 @@ watch(
   () => {
     if (shouldValidateField('workshop_series')) {
       validateField('workshop_series')
+      updateValidationNotice()
     }
   }
 )
@@ -292,10 +306,12 @@ async function handleSubmit() {
   }
 
   hasAttemptedSubmit.value = true
+  validationNotice.value = ''
   submissionNotice.value = ''
   submissionError.value = ''
 
   if (!validateForm()) {
+    updateValidationNotice()
     await focusFirstInvalidField()
     return
   }
@@ -321,6 +337,7 @@ async function handleSubmit() {
       throw new Error(result.error || 'Registration submission failed.')
     }
 
+    validationNotice.value = ''
     submissionNotice.value = 'Registration submitted successfully.'
   } catch (error) {
     submissionError.value =
@@ -337,6 +354,14 @@ async function handleSubmit() {
       <SectionHeading label="Registration Details" compact />
 
       <form ref="formRef" class="registration-form" novalidate @submit.prevent="handleSubmit">
+        <div
+          v-if="validationNotice"
+          class="submission-preview submission-preview--error"
+          role="alert"
+        >
+          <p class="submission-preview__title">{{ validationNotice }}</p>
+        </div>
+
         <FormField
           id="email"
           v-model="form.email"
@@ -462,11 +487,11 @@ async function handleSubmit() {
           Having trouble registering? Contact us at hello [at] innovate-us.org
         </p>
 
-        <div v-if="submissionNotice" class="submission-preview" aria-live="polite">
+        <div v-if="submissionNotice" class="submission-preview" role="status">
           <p class="submission-preview__title">{{ submissionNotice }}</p>
         </div>
 
-        <div v-if="submissionError" class="submission-preview" aria-live="polite" role="alert">
+        <div v-if="submissionError" class="submission-preview submission-preview--error" role="alert">
           <p class="submission-preview__title">{{ submissionError }}</p>
         </div>
       </form>

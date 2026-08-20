@@ -90,15 +90,75 @@ describe('RegistrationForm', () => {
 
     await submitForm(wrapper)
 
-    expect(wrapper.find('#email-error').text()).toBe('Email is required.')
-    expect(wrapper.find('#first_name-error').text()).toBe('First name is required.')
-    expect(wrapper.find('#last_name-error').text()).toBe('Last name is required.')
-    expect(wrapper.find('#country-error').text()).toBe('Select a country.')
+    expect(wrapper.find('[role="alert"]').text()).toBe(
+      'Please correct the fields with error messages before registering.'
+    )
+    expect(wrapper.find('#email-error').text()).toBe('Error: Email is required.')
+    expect(wrapper.find('#first_name-error').text()).toBe('Error: First name is required.')
+    expect(wrapper.find('#last_name-error').text()).toBe('Error: Last name is required.')
+    expect(wrapper.find('#country-error').text()).toBe('Error: Select a country.')
     expect(wrapper.find('#gov_org-error').text()).toBe(
-      'Select whether you support a government organization.'
+      'Error: Select whether you support a government organization.'
     )
     expect(wrapper.find('#workshop-series-error').text()).toBe(
-      'Select at least one event series before continuing.'
+      'Error: Select at least one event series before continuing.'
+    )
+    expect(wrapper.find('#state-error').exists()).toBe(false)
+    expect(wrapper.find('#non_us_country-error').exists()).toBe(false)
+    expect(wrapper.find('#gov_level-error').exists()).toBe(false)
+  })
+
+  it('associates visible labels with native form controls', async () => {
+    const wrapper = mount(RegistrationForm)
+
+    ;['email', 'first_name', 'last_name', 'country', 'gov_org'].forEach((id) => {
+      expect(wrapper.find(`label[for="${id}"]`).exists()).toBe(true)
+      expect(wrapper.find(`#${id}`).exists()).toBe(true)
+    })
+
+    await wrapper.find('#country').setValue('United States')
+    await nextTick()
+    expect(wrapper.find('label[for="state"]').text()).toContain('State')
+
+    await wrapper.find('#country').setValue('Outside the United States')
+    await nextTick()
+    expect(wrapper.find('label[for="non_us_country"]').text()).toContain(
+      'Country (Outside the United States)'
+    )
+
+    await wrapper.find('#gov_org').setValue(yesGovOrgValue)
+    await nextTick()
+    expect(wrapper.find('label[for="gov_level"]').text()).toContain('What level of government?')
+
+    const newsletter = wrapper.find('#newsletter')
+    expect(newsletter.exists()).toBe(true)
+    expect(wrapper.find('label[for="newsletter"]').text()).toContain(
+      'Sign me up for the InnovateUS weekly newsletter.'
+    )
+    expect(wrapper.find('legend#series-title').text()).toBe('Selected Event Series')
+    expect(wrapper.find('.series-card').text()).toContain(workshopSeries[0].title)
+  })
+
+  it('associates invalid fields with their field-level error messages', async () => {
+    const wrapper = mount(RegistrationForm)
+
+    await submitForm(wrapper)
+
+    expect(wrapper.find('#email').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.find('#email').attributes('aria-describedby')).toBe('email-error')
+    expect(wrapper.find('#country').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.find('#country').attributes('aria-describedby')).toBe('country-error')
+
+    const seriesGroup = wrapper.find('fieldset.series-selector')
+    expect(seriesGroup.attributes('aria-invalid')).toBe('true')
+    expect(seriesGroup.attributes('aria-describedby')).toBe(
+      'workshop-series-help workshop-series-error'
+    )
+
+    const seriesCheckbox = wrapper.find('.series-card__checkbox')
+    expect(seriesCheckbox.attributes('aria-invalid')).toBe('true')
+    expect(seriesCheckbox.attributes('aria-describedby')).toBe(
+      'workshop-series-help workshop-series-error'
     )
   })
 
@@ -113,8 +173,8 @@ describe('RegistrationForm', () => {
     await submitForm(wrapper)
 
     expect(global.fetch).not.toHaveBeenCalled()
-    expect(wrapper.find('#first_name-error').text()).toBe('First name is required.')
-    expect(wrapper.find('#last_name-error').text()).toBe('Last name is required.')
+    expect(wrapper.find('#first_name-error').text()).toBe('Error: First name is required.')
+    expect(wrapper.find('#last_name-error').text()).toBe('Error: Last name is required.')
   })
 
   it('rejects invalid email input', async () => {
@@ -127,7 +187,7 @@ describe('RegistrationForm', () => {
     await submitForm(wrapper)
 
     expect(global.fetch).not.toHaveBeenCalled()
-    expect(wrapper.find('#email-error').text()).toBe('Enter a valid email address.')
+    expect(wrapper.find('#email-error').text()).toBe('Error: Enter a valid email address.')
   })
 
   it('accepts a valid email and submits', async () => {
@@ -152,7 +212,7 @@ describe('RegistrationForm', () => {
     await submitForm(usWrapper)
 
     expect(global.fetch).not.toHaveBeenCalled()
-    expect(usWrapper.find('#state-error').text()).toBe('Select a state.')
+    expect(usWrapper.find('#state-error').text()).toBe('Error: Select a state.')
 
     global.fetch.mockClear()
 
@@ -165,6 +225,7 @@ describe('RegistrationForm', () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(nonUsWrapper.find('#state').exists()).toBe(false)
+    expect(nonUsWrapper.find('#state-error').exists()).toBe(false)
   })
 
   it('requires government level only when a government organization answer makes it applicable', async () => {
@@ -176,7 +237,7 @@ describe('RegistrationForm', () => {
     await submitForm(yesWrapper)
 
     expect(global.fetch).not.toHaveBeenCalled()
-    expect(yesWrapper.find('#gov_level-error').text()).toBe('Select the government level.')
+    expect(yesWrapper.find('#gov_level-error').text()).toBe('Error: Select the government level.')
 
     global.fetch.mockClear()
 
@@ -189,6 +250,7 @@ describe('RegistrationForm', () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(noWrapper.find('#gov_level').exists()).toBe(false)
+    expect(noWrapper.find('#gov_level-error').exists()).toBe(false)
   })
 
   it('prevents submission when no workshop series is selected', async () => {
@@ -201,8 +263,29 @@ describe('RegistrationForm', () => {
 
     expect(global.fetch).not.toHaveBeenCalled()
     expect(wrapper.find('#workshop-series-error').text()).toBe(
-      'Select at least one event series before continuing.'
+      'Error: Select at least one event series before continuing.'
     )
+  })
+
+  it('keeps conditional fields out of the tab order and validation until relevant', async () => {
+    const wrapper = mount(RegistrationForm)
+
+    await submitForm(wrapper)
+
+    expect(wrapper.find('#state').exists()).toBe(false)
+    expect(wrapper.find('#non_us_country').exists()).toBe(false)
+    expect(wrapper.find('#gov_level').exists()).toBe(false)
+    expect(wrapper.find('#state-error').exists()).toBe(false)
+    expect(wrapper.find('#non_us_country-error').exists()).toBe(false)
+    expect(wrapper.find('#gov_level-error').exists()).toBe(false)
+
+    await wrapper.find('#country').setValue('Outside the United States')
+    await submitForm(wrapper)
+
+    expect(wrapper.find('#non_us_country').exists()).toBe(true)
+    expect(wrapper.find('#non_us_country-error').text()).toBe('Error: Enter your country.')
+    expect(wrapper.find('#state').exists()).toBe(false)
+    expect(wrapper.find('#state-error').exists()).toBe(false)
   })
 
   it('submits newsletter as false when unchecked', async () => {
@@ -213,6 +296,32 @@ describe('RegistrationForm', () => {
 
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(fetchPayload().newsletter).toBe(false)
+  })
+
+  it('uses a native labelled checkbox for newsletter preference', async () => {
+    const wrapper = mount(RegistrationForm, { attachTo: document.body })
+    const newsletter = wrapper.find('#newsletter')
+
+    expect(newsletter.attributes('type')).toBe('checkbox')
+    expect(newsletter.attributes('name')).toBe('newsletter')
+    expect(newsletter.attributes('aria-labelledby')).toBe('newsletter-label')
+    expect(newsletter.attributes('aria-describedby')).toBe('newsletter-description')
+    expect(wrapper.find('#newsletter-label').text()).toBe(
+      'Sign me up for the InnovateUS weekly newsletter.'
+    )
+    expect(wrapper.find('#newsletter-description').text()).toContain(
+      'We will preserve this preference'
+    )
+    expect(newsletter.element.labels[0]).toBe(wrapper.find('label[for="newsletter"]').element)
+    expect(newsletter.element.tabIndex).toBe(0)
+
+    newsletter.element.focus()
+    expect(document.activeElement).toBe(newsletter.element)
+
+    await newsletter.setValue(true)
+    expect(newsletter.element.checked).toBe(true)
+
+    wrapper.unmount()
   })
 
   it('submits newsletter as true when checked', async () => {
@@ -264,7 +373,7 @@ describe('RegistrationForm', () => {
     await fillValidForm(wrapper)
     await submitForm(wrapper)
 
-    expect(wrapper.find('[aria-live="polite"] .submission-preview__title').text()).toBe(
+    expect(wrapper.find('[role="status"] .submission-preview__title').text()).toBe(
       'Registration submitted successfully.'
     )
   })
@@ -302,7 +411,7 @@ describe('RegistrationForm', () => {
     const wrapper = mount(RegistrationForm)
 
     await submitForm(wrapper)
-    expect(wrapper.find('#email-error').text()).toBe('Email is required.')
+    expect(wrapper.find('#email-error').text()).toBe('Error: Email is required.')
 
     await wrapper.find('#email').setValue('corrected@example.com')
 
@@ -334,7 +443,7 @@ describe('RegistrationForm', () => {
     const errorWrapper = mount(RegistrationForm)
     await errorWrapper.find('#country').setValue('United States')
     await submitForm(errorWrapper)
-    expect(errorWrapper.find('#state-error').text()).toBe('Select a state.')
+    expect(errorWrapper.find('#state-error').text()).toBe('Error: Select a state.')
 
     await errorWrapper.find('#country').setValue('Outside the United States')
     await nextTick()
@@ -359,7 +468,7 @@ describe('RegistrationForm', () => {
     const errorWrapper = mount(RegistrationForm)
     await errorWrapper.find('#gov_org').setValue(yesGovOrgValue)
     await submitForm(errorWrapper)
-    expect(errorWrapper.find('#gov_level-error').text()).toBe('Select the government level.')
+    expect(errorWrapper.find('#gov_level-error').text()).toBe('Error: Select the government level.')
 
     await errorWrapper.find('#gov_org').setValue(noGovOrgValue)
     await nextTick()

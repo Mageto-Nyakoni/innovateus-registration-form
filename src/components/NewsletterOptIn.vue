@@ -3,9 +3,17 @@ const model = defineModel({ required: true })
 </script>
 
 <template>
-  <section class="newsletter-opt-in" aria-labelledby="newsletter-label">
-    <label id="newsletter-label" class="newsletter-opt-in__label">
-      <input v-model="model" type="checkbox" class="newsletter-opt-in__checkbox" />
+  <div class="newsletter-opt-in">
+    <label class="newsletter-opt-in__label" for="newsletter">
+      <input
+        id="newsletter"
+        v-model="model"
+        type="checkbox"
+        name="newsletter"
+        class="newsletter-opt-in__checkbox"
+        aria-labelledby="newsletter-label"
+        aria-describedby="newsletter-description"
+      />
       <span class="newsletter-opt-in__icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" class="newsletter-opt-in__icon-svg" focusable="false" aria-hidden="true">
           <path
@@ -15,11 +23,13 @@ const model = defineModel({ required: true })
         </svg>
       </span>
       <span class="newsletter-opt-in__content">
-        <span class="newsletter-opt-in__headline">Sign me up for the InnovateUS weekly newsletter.</span>
-        <span class="newsletter-opt-in__copy">
+        <span id="newsletter-label" class="newsletter-opt-in__headline">
+          Sign me up for the InnovateUS weekly newsletter.
+        </span>
+        <span id="newsletter-description" class="newsletter-opt-in__copy">
           We will preserve this preference in the CMS as part of the registration intake.
         </span>
       </span>
     </label>
-  </section>
+  </div>
 </template>

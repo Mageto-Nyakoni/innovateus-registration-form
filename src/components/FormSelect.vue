@@ -71,6 +71,8 @@ const describedBy = computed(() => {
       </select>
     </div>
     <p v-if="hint" :id="`${id}-hint`" class="form-hint">{{ hint }}</p>
-    <p v-if="error" :id="`${id}-error`" class="form-error" role="alert">{{ error }}</p>
+    <p v-if="error" :id="`${id}-error`" class="form-error">
+      <span class="form-error__prefix">Error: </span>{{ error }}
+    </p>
   </div>
 </template>
