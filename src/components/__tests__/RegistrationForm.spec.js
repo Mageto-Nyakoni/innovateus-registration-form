@@ -267,6 +267,25 @@ describe('RegistrationForm', () => {
     )
   })
 
+  it('keeps selected series options visually selected until unchecked', async () => {
+    const wrapper = mount(RegistrationForm)
+    const checkboxes = wrapper.findAll('.series-card__checkbox')
+
+    await checkboxes[0].setValue(true)
+    await checkboxes[1].setValue(true)
+
+    const selectedCards = wrapper.findAll('.series-card--selected')
+    expect(selectedCards).toHaveLength(2)
+    expect(selectedCards[0].text()).toContain(workshopSeries[0].title)
+    expect(selectedCards[1].text()).toContain(workshopSeries[1].title)
+
+    await checkboxes[0].setValue(false)
+
+    const remainingSelectedCards = wrapper.findAll('.series-card--selected')
+    expect(remainingSelectedCards).toHaveLength(1)
+    expect(remainingSelectedCards[0].text()).toContain(workshopSeries[1].title)
+  })
+
   it('keeps conditional fields out of the tab order and validation until relevant', async () => {
     const wrapper = mount(RegistrationForm)
 

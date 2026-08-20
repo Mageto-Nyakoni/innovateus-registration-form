@@ -425,6 +425,19 @@ button {
   transform: translateX(2px);
 }
 
+.series-card--selected {
+  background: rgba(228, 239, 252, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(0, 102, 204, 0.18);
+  transform: translateX(2px);
+}
+
+.series-card--selected .series-card__badge {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), transparent 42%),
+    linear-gradient(145deg, #fff2b8, #f0a03a 58%, #cc6922);
+  color: #66340f;
+}
+
 .series-card__checkbox {
   width: 1rem;
   height: 1rem;

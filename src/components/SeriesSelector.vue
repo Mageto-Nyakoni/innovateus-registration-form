@@ -83,7 +83,10 @@ function isChecked(id) {
 
     <ul class="series-selector__list">
       <li v-for="entry in series" :key="entry.id" class="series-selector__item">
-        <label class="series-card">
+        <label
+          class="series-card"
+          :class="{ 'series-card--selected': isChecked(entry.id) }"
+        >
           <input
             class="series-card__checkbox"
             type="checkbox"
