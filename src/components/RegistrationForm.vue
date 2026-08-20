@@ -16,6 +16,8 @@ import SeriesSelector from './SeriesSelector.vue'
 const formRef = ref(null)
 const seriesError = ref('')
 const submissionNotice = ref('')
+const submissionError = ref('')
+const isSubmitting = ref(false)
 
 const form = reactive({
   email: '',
@@ -43,6 +45,27 @@ const selectedSeriesTitles = computed(() =>
     .filter((entry) => form.workshop_series.includes(entry.id))
     .map((entry) => entry.title)
 )
+const directusPayload = computed(() => {
+  const payload = {
+    first_name: form.first_name.trim(),
+    last_name: form.last_name.trim(),
+    email: form.email.trim(),
+    country: resolvedCountry.value,
+    gov_org: form.gov_org,
+    workshop_series: selectedSeriesTitles.value.join(', '),
+    newsletter: form.newsletter
+  }
+
+  if (requiresState.value && form.state) {
+    payload.state = form.state
+  }
+
+  if (requiresGovLevel.value && form.gov_level) {
+    payload.gov_level = form.gov_level
+  }
+
+  return payload
+})
 
 watch(
   () => form.country_mode,
@@ -71,20 +94,13 @@ watch(
   }
 )
 
-const localPayloadPreview = computed(() => ({
-  first_name: form.first_name,
-  last_name: form.last_name,
-  email: form.email,
-  country: resolvedCountry.value,
-  state: requiresState.value ? form.state : '',
-  gov_org: form.gov_org,
-  gov_level: requiresGovLevel.value ? form.gov_level : '',
-  workshop_series: selectedSeriesTitles.value.join(', '),
-  newsletter: form.newsletter
-}))
+async function handleSubmit() {
+  if (isSubmitting.value) {
+    return
+  }
 
-function handleSubmit() {
   submissionNotice.value = ''
+  submissionError.value = ''
   seriesError.value = ''
 
   if (!formRef.value?.reportValidity()) {
@@ -96,8 +112,33 @@ function handleSubmit() {
     return
   }
 
-  submissionNotice.value =
-    'Frontend intake captured locally. The Directus submission route will be connected next.'
+  isSubmitting.value = true
+
+  try {
+    const response = await fetch('/.netlify/functions/submit-registration', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...directusPayload.value,
+        website: form.website
+      })
+    })
+
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Registration submission failed.')
+    }
+
+    submissionNotice.value = 'Registration submitted successfully.'
+  } catch (error) {
+    submissionError.value =
+      error instanceof Error ? error.message : 'Registration submission failed.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -149,7 +190,7 @@ function handleSubmit() {
             v-if="requiresState"
             id="state"
             v-model="form.state"
-            label="State/Province *"
+            label="State *"
             :options="usStateOptions"
             required
           />
@@ -157,9 +198,10 @@ function handleSubmit() {
             v-else-if="requiresNonUsCountry"
             id="non_us_country"
             v-model="form.non_us_country"
-            label="Country (Non US only)"
-            placeholder="Enter your answer (optional)"
+            label="Country (Outside the United States) *"
+            placeholder="Enter your country"
             autocomplete="country-name"
+            required
           />
           <div v-else class="form-control form-control--empty" aria-hidden="true"></div>
         </div>
@@ -177,7 +219,7 @@ function handleSubmit() {
             v-if="requiresGovLevel"
             id="gov_level"
             v-model="form.gov_level"
-            label="If a government employee or consultant: What level of government? *"
+            label="If you selected yes above: What level of government? *"
             :options="governmentLevelOptions"
             required
           />
@@ -195,7 +237,9 @@ function handleSubmit() {
         </div>
 
         <div class="registration-form__actions">
-          <button type="submit" class="button button--primary">Register</button>
+          <button type="submit" class="button button--primary" :disabled="isSubmitting">
+            {{ isSubmitting ? 'Submitting...' : 'Register' }}
+          </button>
         </div>
 
         <p class="registration-form__help">
@@ -204,7 +248,10 @@ function handleSubmit() {
 
         <div v-if="submissionNotice" class="submission-preview" aria-live="polite">
           <p class="submission-preview__title">{{ submissionNotice }}</p>
-          <pre class="submission-preview__code">{{ JSON.stringify(localPayloadPreview, null, 2) }}</pre>
+        </div>
+
+        <div v-if="submissionError" class="submission-preview" aria-live="polite" role="alert">
+          <p class="submission-preview__title">{{ submissionError }}</p>
         </div>
       </form>
     </div>
