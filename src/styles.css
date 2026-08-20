@@ -948,8 +948,7 @@ button {
     border-radius: 10px;
   }
 
-  .newsletter-opt-in,
-  .series-card {
+  .newsletter-opt-in {
     grid-template-columns: 1fr;
   }
 
@@ -967,12 +966,24 @@ button {
   }
 
   .series-card {
+    grid-template-columns: auto auto minmax(0, 1fr);
     gap: 0.65rem;
+    align-items: start;
   }
 
   .series-card__badge {
     width: 2.6rem;
     height: 2.6rem;
+    align-self: center;
+  }
+
+  .series-card__checkbox {
+    align-self: center;
+  }
+
+  .series-card__title {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .site-footer__headline {
